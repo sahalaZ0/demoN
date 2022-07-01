@@ -1,0 +1,508 @@
+69.文章搜索-模块介绍
+70.文章搜索-创建组件并配置路由
+71.文章搜索-页面布局-搜索栏
+72.文章搜索-页面布局-完成
+73.文章搜索-处理页面展示逻辑
+74.文章搜索-联想建议-获取并监视输入框内容的变化
+75.文章搜索-联想建议-请求获取展示数据
+76.文章搜索-联想建议-优化防抖
+77.文章搜索-联想建议-搜索关键字高亮-思路分析
+78.文章搜索-联想建议-搜索关键字高亮
+79.文章搜索-搜索结果-传递搜索内容
+80.文章搜索-搜索结果-处理完成
+81.文章搜索-历史记录-添加历史记录
+82.文章搜索-历史记录-展示历史记录
+83.文章搜索-历史记录-处理删除显示状态
+84.文章搜索-历史记录-处理删除操作
+85.文章搜索-历史记录-数据持久化
+
+
+         函数防抖与节流面试题
+
+						正常：事件触发非常频繁，而且每一次的触发，回调函数都要去执行（如果时间很短，而回调函数内部有计算，那么很可能出现浏览器卡顿）
+
+						防抖：前面的所有的触发都被取消，最后一次执行在规定的时间之后才会触发，也就是说如果连续快速的触发,只会执行最后一次
+
+						节流：在规定的间隔时间范围内不会重复触发回调，只有大于这个时间间隔才会触发回调，把频繁触发变为少量触发
+
+
+
+          参看课件  防抖与节流 案例
+
+
+          利用lodash进行函数节流处理
+
+               https://www.lodashjs.com/
+
+               https://www.lodashjs.com/docs/lodash.debounce
+
+              
+
+
+               参数
+									func (Function): 要防抖动的函数。
+									[wait=0] (number): 需要延迟的毫秒数。
+									[options=] (Object): 选项对象。
+									[options.leading=false] (boolean): 指定在延迟开始前调用。
+									[options.maxWait] (number): 设置 func 允许被延迟的最大值。
+									[options.trailing=true] (boolean): 指定在延迟结束后调用。
+
+
+
+     接口文档.html   左侧 ---  搜索
+
+
+
+     npm  i  lodash  --save 
+
+
+  右键  src/api  ---  new  file name: search.js
+
+    /**
+	 * 用户相关请求模块
+	 */
+	import request from '@/utils/request'
+
+	export const getSearchSuggestions = q => {
+	  return request({
+	    method: 'GET',
+	    url: '/app/v1_0/suggestion',
+	    params: {
+	      q
+	    }
+	  })
+	}
+
+	export const getSearchResult = params => {
+	  return request({
+	    method: 'GET',
+	    url: '/app/v1_0/search',
+	    params
+	  })
+	}
+
+
+	右键  src/views   ---  new  directory  name:  search
+
+	右键  search   ---  new  directory  name: components
+
+
+	右键  components   ---  new  file  name: search-history.vue
+
+
+	<template>
+	  <div class="search-history">
+	    <van-cell title="搜索历史">
+	      <div v-if="isDeleteShow">
+	        <span @click="$emit('clear-search-histories')">全部删除</span>
+	        &nbsp;&nbsp;
+	        <span @click="isDeleteShow = false">完成</span>
+	      </div>
+	      <van-icon v-else name="delete" @click="isDeleteShow = true" />
+	    </van-cell>
+	    <van-cell
+	      :title="item"
+	      v-for="(item, index) in searchHistories"
+	      :key="index"
+	      @click="onSearchItemClick(item, index)"
+	    >
+	      <van-icon v-show="isDeleteShow" name="close" />
+	    </van-cell>
+	  </div>
+	</template>
+
+	<script>
+	export default {
+	  name: 'SearchHistory',
+	  components: {},
+	  props: {
+	    // Prop 数据
+	    //  Prop 是受父组件数据影响的
+	    //    如果是普通数据（数字、字符串、布尔值）绝对不能修改
+	    //    即便改了也不会传导给父组件
+	    //
+	    //    如果是引用类型数据（数组、对象）
+	    //        可以修改，例如 [].push(xxx)，对象.xxx = xxx
+	    //        不能重新赋值, xxx = []
+	    searchHistories: {
+	      type: Array,
+	      required: true
+	    }
+	  },
+	  data () {
+	    return {
+	      isDeleteShow: false // 控制删除显示状态
+	    }
+	  },
+	  computed: {},
+	  watch: {},
+	  created () {},
+	  mounted () {},
+	  methods: {
+	    onSearchItemClick (item, index) {
+	      if (this.isDeleteShow) {
+	        // 删除状态，删除历史记录数据
+	        this.searchHistories.splice(index, 1)
+	      } else {
+	        // 非删除状态，直接进入搜索
+	        this.$emit('search', item)
+	      }
+	    }
+	  }
+	}
+	</script>
+
+	<style scoped lang="less"></style>
+
+
+
+    右键  components   ---  new  file  name: search-result.vue
+
+
+
+		<template>
+		  <div class="search-result">
+		    <van-list
+		      v-model="loading"
+		      :finished="finished"
+		      finished-text="没有更多了"
+		      :error.sync="error"
+		      error-text="加载失败，请点击重试"
+		      @load="onLoad"
+		    >
+		      <van-cell
+		        v-for="(article, index) in list"
+		        :key="index"
+		        :title="article.title"
+		      />
+		    </van-list>
+		  </div>
+		</template>
+
+		<script>
+		import { getSearchResult } from '@/api/search'
+
+		export default {
+		  name: 'SearchResult',
+		  components: {},
+		  props: {
+		    searchText: {
+		      type: String,
+		      required: true
+		    }
+		  },
+		  data () {
+		    return {
+		      list: [],
+		      loading: false,
+		      finished: false,
+		      page: 1,
+		      perPage: 20,
+		      error: false
+		    }
+		  },
+		  computed: {},
+		  watch: {},
+		  created () {},
+		  mounted () {},
+		  methods: {
+		    async onLoad () {
+		      try {
+		        // 1. 请求获取数据
+		        const { data } = await getSearchResult({
+		          page: this.page, // 页码
+		          per_page: this.perPage, // 每页大小
+		          q: this.searchText // 查询关键词
+		        })
+
+		        // 2. 将数据添加到数组列表中
+		        const { results } = data.data
+		        this.list.push(...results)
+
+		        // 3. 将本次加载中的 loading 关闭
+		        this.loading = false
+
+		        // 4. 判断是否还有数据
+		        if (results.length) {
+		          // 如果有，则更新获取下一个数据的页码
+		          this.page++
+		        } else {
+		          // 如果没有，则将加载状态 finished 设置为结束
+		          this.finished = true
+		        }
+		      } catch (err) {
+		        // 展示加载失败的提示状态
+		        this.error = true
+
+		        // 加载失败了 loading 也要关闭
+		        this.loading = false
+		      }
+		    }
+		  }
+		}
+		</script>
+
+		<style scoped lang="less"></style>
+
+
+
+
+   右键  components   ---  new  file  name: search-suggestion.vue
+
+
+    <template>
+	  <div class="search-suggestion">
+	    <van-cell
+	      icon="search"
+	      v-for="(text, index) in suggestions"
+	      :key="index"
+	      @click="$emit('search', text)"
+	    >
+	      <div slot="title" v-html="highlight(text)"></div>
+	    </van-cell>
+	    <!-- 双花括号绑定会直接输出纯文本内容 -->
+	    <!-- <div>{{ htmlStr }}</div> -->
+
+	    <!-- 使用 v-html 指令可以绑定渲染带有 HTML 标签的字符串 -->
+	    <!-- <div v-html="htmlStr"></div> -->
+	  </div>
+	</template>
+
+	<script>
+	import { getSearchSuggestions } from '@/api/search'
+
+	// 按需加载有好处：只会把使用到的成员打包到结果中
+	import { debounce } from 'lodash'
+
+	export default {
+	  name: 'SearchSuggestion',
+	  components: {},
+	  props: {
+	    searchText: {
+	      type: String,
+	      required: true
+	    }
+	  },
+	  data () {
+	    return {
+	      suggestions: [], // 联想建议数据列表
+	      htmlStr: 'Hello <span style="color: red">World</span>'
+	    }
+	  },
+	  computed: {},
+	  watch: {
+	    searchText: {
+	      // 当 searchText 发生改变的时候就会调用 handler 函数
+	      // 注意：handler 函数名称是固定的
+	      // handler (value) {
+	      //   console.log(value)
+	      // },
+
+	      // debounce 函数
+	      // 参数1：一个函数
+	      // 参数2：延迟时间，单位是毫秒
+	      // 返回值：防抖之后的函数
+	      handler: debounce(function (value) {
+	        this.loadSearchSuggestions(value)
+	      }, 200),
+	      // handler (value) {
+	      //   this.loadSearchSuggestions(value)
+	      // },
+	      immediate: true // 该回调将会在侦听开始之后被立即调用
+	    }
+	  },
+	  created () {},
+	  mounted () {},
+	  methods: {
+	    async loadSearchSuggestions (q) {
+	      try {
+	        const { data } = await getSearchSuggestions(q)
+	        this.suggestions = data.data.options
+	      } catch (err) {
+	        this.$toast('数据获取失败，请稍后重试')
+	      }
+	    },
+
+	    highlight (text) {
+	      const highlightStr = `<span class="active">${this.searchText}</span>`
+
+	      // 正则表达式 // 中间的内容都会当作匹配字符来使用，而不是数据变量
+	      // 如果需要根据数据变量动态的创建正则表达式，则手动 new RegExp
+	      // RegExp 正则表达式构造函数
+	      //    参数1：匹配模式字符串，它会根据这个字符串创建正则对象
+	      //    参数2：匹配模式，要写到字符串中
+	      const reg = new RegExp(this.searchText, 'gi')
+	      return text.replace(reg, highlightStr)
+	    }
+	  }
+	}
+	</script>
+
+	<style scoped lang="less">
+	.search-suggestion {
+	  /deep/ span.active {
+	    color: #3296fa;
+	  }
+	}
+	</style>
+
+
+	右键  search   ---  new  file  name: index.vue
+
+
+	    <template>
+		  <div class="search-container">
+		    <!-- 搜索栏 -->
+		    <!--
+		      Tips: 在 van-search 外层增加 form 标签，且 action 不为空，即可在 iOS 输入法中显示搜索按钮
+		     -->
+		    <form class="search-form" action="/">
+		      <van-search
+		        v-model="searchText"
+		        show-action
+		        placeholder="请输入搜索关键词"
+		        background="#3296fa"
+		        @search="onSearch"
+		        @cancel="onCancel"
+		        @focus="isResultShow = false"
+		      />
+		    </form>
+		    <!-- /搜索栏 -->
+
+		    <!-- 搜索结果 -->
+		    <search-result
+		      v-if="isResultShow"
+		      :search-text="searchText"
+		    />
+		    <!-- /搜索结果 -->
+
+		    <!-- 联想建议 -->
+		    <search-suggestion
+		      v-else-if="searchText"
+		      :search-text="searchText"
+		      @search="onSearch"
+		    />
+		    <!-- /联想建议 -->
+
+		    <!-- 搜索历史记录 -->
+		    <search-history
+		      v-else
+		      :search-histories="searchHistories"
+		      @clear-search-histories="searchHistories = []"
+		      @search="onSearch"
+		    />
+		    <!-- /搜索历史记录 -->
+		  </div>
+		</template>
+
+		<script>
+		import SearchHistory from './components/search-history'
+		import SearchSuggestion from './components/search-suggestion'
+		import SearchResult from './components/search-result'
+		import { setItem, getItem } from '@/utils/storage'
+
+		export default {
+		  name: 'SearchIndex',
+		  components: {
+		    SearchHistory,
+		    SearchSuggestion,
+		    SearchResult
+		  },
+		  props: {},
+		  data () {
+		    return {
+		      searchText: '',
+		      isResultShow: false, // 控制搜索结果的展示
+		      searchHistories: getItem('TOUTIAO_SEARCH_HISTORIES') || [] // 搜索的历史记录数据
+		    }
+		  },
+		  computed: {},
+		  watch: {
+		    searchHistories (value) {
+		      setItem('TOUTIAO_SEARCH_HISTORIES', value)
+		    }
+		    // searchHistories: {
+		    //   handler () {}
+		    // }
+		  },
+		  created () {},
+		  mounted () {},
+		  methods: {
+		    onSearch (val) {
+		      // 更新文本框内容
+		      this.searchText = val
+
+		      // 存储搜索历史记录
+		      // 要求：不要有重复历史记录、最新的排在最前面
+		      const index = this.searchHistories.indexOf(val)
+		      if (index !== -1) {
+		        this.searchHistories.splice(index, 1)
+		      }
+		      this.searchHistories.unshift(val)
+
+		      // 渲染搜索结果
+		      this.isResultShow = true
+		    },
+
+		    onCancel () {
+		      this.$router.back()
+		    }
+		  }
+		}
+		</script>
+
+		<style scoped lang="less">
+		.search-container {
+		  padding-top: 108px;
+		  .van-search__action {
+		    color: #fff;
+		  }
+		  .search-form {
+		    position: fixed;
+		    top: 0;
+		    left: 0;
+		    right: 0;
+		    z-index: 1;
+		  }
+		}
+		</style>
+
+
+
+   打开   src/router/index.js
+
+      ,
+	  {
+	    path: '/search',
+	    name: 'search',
+	    component: () => import('@/views/search')
+	  }
+
+
+
+   查看   src/views/home/index.vue
+
+   4-13行
+
+     <van-nav-bar class="page-nav-bar" fixed>
+      <van-button
+        class="search-btn"
+        slot="title"
+        type="info"
+        size="small"
+        round
+        icon="search"
+        to="/search"
+      >搜索</van-button>
+
+
+
+   npm  run  serve
+
+   
+
+
+
+
+
+

@@ -1,37 +1,51 @@
 /**
  * 封装 axios 请求模块
  */
-import axios from 'axios'
-import store from '@/store'
-
+import axios from 'axios';
+import store from '@/store';
+import JSONBig from 'json-bigint';
 // 响应拦截器
 const request = axios.create({
-  baseURL: 'http://api-toutiao-web.itheima.net/' // 基础路径
-})
+  baseURL: 'http://api-toutiao-web.itheima.net/', // 基础路径
+  // 自定义后端返回的原始数据
+  // data: 后端返回的原始数据，说白了就是 JSON 格式的字符串
+  transformResponse: [
+    function (data) {
+      try {
+        return JSONBig.parse(data);
+      } catch (err) {
+        return data;
+      }
+
+      // axios 默认会在内部这样来处理后端返回的数据
+      // return JSON.parse(data)
+    },
+  ],
+});
 
 // https://github.com/axios/axios#interceptors
 // 请求拦截器
 // Add a request interceptor
 request.interceptors.request.use(
-  function(config) {
+  function (config) {
     // 请求发起会经过这里
     // config：本次请求的请求配置对象
-    const { user } = store.state
+    const { user } = store.state;
     if (user && user.token) {
-      config.headers.Authorization = `Bearer ${user.token}`
+      config.headers.Authorization = `Bearer ${user.token}`;
     }
 
     // 注意：这里务必要返回 config 配置对象，否则请求就停在这里出不去了
-    return config
+    return config;
   },
-  function(error) {
+  function (error) {
     // 如果请求出错了（还没有发出去）会进入这里
-    return Promise.reject(error)
+    return Promise.reject(error);
   }
-)
+);
 // 请求拦截器
 request.interceptors.request.use(
-  function(config) {
+  function (config) {
     const user = store.state.user;
     if (user) {
       config.headers.Authorization = `Bearer ${user.token}`;
@@ -39,7 +53,7 @@ request.interceptors.request.use(
     // Do something before request is sent
     return config;
   },
-  function(error) {
+  function (error) {
     // Do something with request error
     return Promise.reject(error);
   }
@@ -49,13 +63,13 @@ request.interceptors.request.use(
 request.interceptors.response.use(
   // 响应成功进入第1个函数
   // 该函数的参数是响应对象
-  function(response) {
+  function (response) {
     // Any status code that lie within the range of 2xx cause this function to trigger
     // Do something with response data
     return response;
   },
   // 响应失败进入第2个函数，该函数的参数是错误对象
-  async function(error) {
+  async function (error) {
     // Any status codes that falls outside the range of 2xx cause this function to trigger
     // Do something with response error
     // 如果响应码是 401 ，则请求获取新的 token
@@ -67,7 +81,7 @@ request.interceptors.response.use(
       const user = store.state.user;
 
       if (!user || !user.refresh_token) {
-        router.push("/login");
+        router.push('/login');
 
         // 代码不要往后执行了
         return;
@@ -76,18 +90,18 @@ request.interceptors.response.use(
       // 如果有refresh_token，则请求获取新的 token
       try {
         const res = await axios({
-          method: "PUT",
-          url: "http://ttapi.research.itcast.cn/app/v1_0/authorizations",
+          method: 'PUT',
+          url: 'http://ttapi.research.itcast.cn/app/v1_0/authorizations',
           headers: {
-            Authorization: `Bearer ${user.refresh_token}`
-          }
+            Authorization: `Bearer ${user.refresh_token}`,
+          },
         });
 
         // 如果获取成功，则把新的 token 更新到容器中
-        console.log("刷新 token  成功", res);
-        store.commit("setUser", {
+        console.log('刷新 token  成功', res);
+        store.commit('setUser', {
           token: res.data.data.token, // 最新获取的可用 token
-          refresh_token: user.refresh_token // 还是原来的 refresh_token
+          refresh_token: user.refresh_token, // 还是原来的 refresh_token
         });
 
         // 把之前失败的用户请求继续发出去
@@ -96,8 +110,8 @@ request.interceptors.response.use(
         return request(error.config);
       } catch (err) {
         // 如果获取失败，直接跳转 登录页
-        console.log("请求刷线 token 失败", err);
-        router.push("/login");
+        console.log('请求刷线 token 失败', err);
+        router.push('/login');
       }
     }
 
@@ -105,6 +119,4 @@ request.interceptors.response.use(
   }
 );
 
-
-
-export default request
+export default request;

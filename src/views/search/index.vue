@@ -8,6 +8,7 @@
       <van-search
         v-model="searchText"
         show-action
+        autofocus
         placeholder="请输入搜索关键词"
         background="#3296fa"
         @search="onSearch"
@@ -56,6 +57,7 @@ export default {
   props: {},
   data() {
     return {
+      //
       searchText: '',
       isResultShow: false, // 控制搜索结果的展示
       searchHistories: getItem('TOUTIAO_SEARCH_HISTORIES') || [], // 搜索的历史记录数据
@@ -64,6 +66,10 @@ export default {
   computed: {},
   watch: {
     searchHistories(value) {
+      console.log(value.length);
+      if(value.length >=5){
+        this.searchHistories.pop()
+      }
       setItem('TOUTIAO_SEARCH_HISTORIES', value);
     },
     // searchHistories: {
@@ -84,6 +90,7 @@ export default {
         this.searchHistories.splice(index, 1);
       }
       this.searchHistories.unshift(val);
+      // console.log(val);
 
       // 渲染搜索结果
       this.isResultShow = true;
